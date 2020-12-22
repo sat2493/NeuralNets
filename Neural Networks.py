@@ -79,3 +79,9 @@ class Network:
                 self.weights.append(np.zeros(numPrevLayerNeurons))
             #np.asarray(self.weights)
             self.weights = np.asarray(self.weights)
+
+def cost(actual, ideal):
+    sum = 0
+    for y, y_bar in zip(actual, ideal):
+        sum = sum + pow(y - y_bar, 2)
+    return sum
