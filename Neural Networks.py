@@ -98,3 +98,15 @@ def cost(actual, ideal):
     for y, y_bar in zip(actual, ideal):
         sum = sum + pow(y - y_bar, 2)
     return sum
+
+# Finds derivative with respect to a single weight parameter
+def derivative_of_cost_with_respect_to_weight(current_neuron, previous_neuron, z_value, ideal_output):
+    return previous_neuron * ((pow(np.e, -z_value)) / pow((1 + pow(np.e, -z_value)), 2)) * (2 * (current_neuron - ideal_output))
+
+# Finds derivative with respect to a single bias parameter
+def derivative_of_cost_with_respect_to_bias(current_neuron, z_value, ideal_output):
+    return ((pow(np.e, -z_value)) / pow((1 + pow(np.e, -z_value)), 2)) * (2 * (current_neuron - ideal_output))
+
+# Finds derivative with respect to a single weight parameter
+def derivative_of_cost_with_respect_to_previous_neuron(current_neuron, weight, z_value, ideal_output):
+    return weight * ((pow(np.e, -z_value)) / pow((1 + pow(np.e, -z_value)), 2)) * (2 * (current_neuron - ideal_output))
