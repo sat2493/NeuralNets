@@ -18,6 +18,8 @@ class Network:
             self.layers.append(nextlayer)
             count = count + 1
             
+        self.outputlayer = self.layers[len(self.layers) - 1]
+            
     def update(self, x):
         
         count = 0
@@ -31,13 +33,11 @@ class Network:
             count = count + 1
         
     def calculate_activations(self, prevLayer, currLayer):
-        # Matrix-vector multiplication to calculate next layer values
-        currLayer.neurons = np.matmul(currLayer.weights, prevLayer.neurons)
-        # Subtract Current Layer's Biases from Neurons
-        currLayer.neurons = currLayer.neurons 
+        # Calculate z value
+        currLayer.z_values = z_value(prevLayer, currLayer) 
         # Apply the sigmoid function to the result
-        currLayer.neurons = 1 / ( np.ones(currLayer.neurons.size) + pow(np.e, -currLayer.neurons) )
-        
+        currLayer.neurons = sigmoid(currLayer.z_values)
+            
     def decision(self):
         lastlevel = len(self.layers) - 1
         outputlayer = self.layers[lastlevel]
@@ -57,18 +57,21 @@ class Network:
         # Read image pixels, initialize neurons with the values of each image
         
         def __init__(self, numNeurons):
+            self.z_values = np.ones(numNeurons)
             self.neurons = np.ones(numNeurons)
             
         def read(self, x):
             count = 0
             for i in x:
                 for pixel in i:
-                    self.neurons[count] = pixel
+                    self.z_values[count] = pixel
+                    self.neurons = sigmoid(self.z_values)
                     count = count + 1
             
     class NextLayer: 
         def __init__(self, numCurrLayerNeurons, numPrevLayerNeurons):
             # Initialize layer's neurons and biases
+            self.z_values = np.ones(numCurrLayerNeurons)
             self.neurons = np.ones(numCurrLayerNeurons)
             self.biases = np.ones(numCurrLayerNeurons)
             
@@ -79,6 +82,16 @@ class Network:
                 self.weights.append(np.zeros(numPrevLayerNeurons))
             #np.asarray(self.weights)
             self.weights = np.asarray(self.weights)
+
+def z_value(prevLayer, currLayer):
+    # Matrix-vector multiplication to calculate next layer values
+    result = np.matmul(currLayer.weights, prevLayer.neurons)
+    # Subtract Current Layer's Biases from Neurons
+    result = result - currLayer.biases 
+    return result
+
+def sigmoid(z_value):
+    return 1 / ( np.ones(z_value.size) + pow(np.e, -z_value) )
 
 def cost(actual, ideal):
     sum = 0
