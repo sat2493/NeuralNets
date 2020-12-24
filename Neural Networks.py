@@ -1,3 +1,30 @@
+class Table:
+    def __init__(self, network, batchsize):
+        self.tables = []
+        
+        count = 0
+        for layer in network.layers:
+            if layer == network.inputlayer:
+                print("Yuh", count)
+                count = count + 1
+                continue
+                
+            self.tables.append(self.LayerTable(network.layers[count-1], layer, batchsize))
+            count = count + 1
+            
+    class LayerTable:
+        # Initialize Tables & Store Them Inside the Network
+        def __init__(self, prevLayer, currLayer, batchsize):
+            # Set table width to be equal to batch size
+            self.df_bias = pd.DataFrame(columns=range(batchsize))
+            self.df_weight = pd.DataFrame(columns=range(batchsize))
+            self.df_prev_neuron = pd.DataFrame(columns=range(batchsize))
+
+            # Set table height to correspond to respective curr/prev neuron positions
+            self.df_bias[0] = np.ones(len(currLayer.neurons))
+            self.df_weight[0] = np.ones(len(currLayer.neurons))
+            self.df_prev_neuron[0] = np.ones(len(prevLayer.neurons))
+
 class Network:
     def __init__(self, numNeuronsInEachLayers):
         
