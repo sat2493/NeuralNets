@@ -110,3 +110,15 @@ def derivative_of_cost_with_respect_to_bias(current_neuron, z_value, ideal_outpu
 # Finds derivative with respect to a single weight parameter
 def derivative_of_cost_with_respect_to_previous_neuron(current_neuron, weight, z_value, ideal_output):
     return weight * ((pow(np.e, -z_value)) / pow((1 + pow(np.e, -z_value)), 2)) * (2 * (current_neuron - ideal_output))
+
+def partial_backpropagation(currLayer, prevLayer, ideal_outputs):
+    
+    for a_j, z_j, y, w_j in zip(currLayer.neurons, currLayer.z_values, ideal_outputs, currLayer.weights):
+        nudge_bias = derivative_of_cost_with_respect_to_bias(a_j, z_j, y)
+        
+        for a_k, w_jk in zip(prevLayer.neurons, w_j):
+            nudge_weight = derivative_of_cost_with_respect_to_weight(a_j, a_k, z_j, y)
+            nudge_a_k = derivative_of_cost_with_respect_to_previous_neuron(a_j, z_j, y)
+            
+        # Move on to next neuron in L layer
+        j = j + 1   
