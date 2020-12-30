@@ -117,9 +117,7 @@ class Table:
             self.df_prev_neuron = pd.DataFrame(columns=range(batchsize))
 
             # Set table height to correspond to respective curr/prev neuron positions
-            # self.df_bias[0] = np.ones(len(currLayer.neurons))
             self.df_weight[0] = np.empty(len(currLayer.neurons), dtype=object) #np.ones(len(currLayer.neurons)) 
-            # self.df_prev_neuron[0] = np.ones(len(prevLayer.neurons))
 
 def z_value(prevLayer, currLayer):
     # Matrix-vector multiplication to calculate next layer values
@@ -156,6 +154,23 @@ def train(network, X, Y):
         # Perform Backpropagation Across All Training Examples
         full_backpropagation(network, y, table, training_example)
         training_example = training_example + 1
+
+    # Take averages across all training examples
+    count = 1
+    for t in table.tables:
+        # Tweak bias parameters
+        nudge_biases = np.array(t.df_bias.mean(1))
+        network.layers[count].biases = network.layers[count].biases + nudge_biases
+
+        # Tweak weight parameters
+        count1 = 0
+        for w in t.df_weight.values:
+            nudge_weights = w.mean()
+            network.layers[count].weights[count1] = network.layers[count].weights[count1] + nudge_weights
+            count1 = count1 + 1
+        count = count + 1
+
+    # Add nudges to each relevant parameter
 
 # Full Algorithm For One Training Example
 def full_backpropagation(network, y, table, training_example):
@@ -232,3 +247,18 @@ def partial_backpropagation(currLayer, prevLayer, lastLayer, ideal_outputs, laye
                 
                 k = k + 1
             j = j + 1
+
+X = x_train[0:2]
+Y = y_train[0:2]
+
+numInputNeurons = 784
+numOutputNeurons = 10
+
+# Array of Number of Neurons in Each Layer
+numNeuronsInEachLayer = [numInputNeurons, 16, 16, 16, numOutputNeurons]
+
+n = Network(numNeuronsInEachLayer)
+
+n.update(x_train[0])
+n.layers
+train(n,X,Y)
