@@ -1,29 +1,14 @@
-class Table:
-    def __init__(self, network, batchsize):
-        self.tables = []
-        
-        count = 0
-        for layer in network.layers:
-            if layer == network.inputlayer:
-                print("Yuh", count)
-                count = count + 1
-                continue
-                
-            self.tables.append(self.LayerTable(network.layers[count-1], layer, batchsize))
-            count = count + 1
-            
-    class LayerTable:
-        # Initialize Tables & Store Them Inside the Network
-        def __init__(self, prevLayer, currLayer, batchsize):
-            # Set table width to be equal to batch size
-            self.df_bias = pd.DataFrame(columns=range(batchsize))
-            self.df_weight = pd.DataFrame(columns=range(batchsize))
-            self.df_prev_neuron = pd.DataFrame(columns=range(batchsize))
+import pandas as pd
+import numpy as np
+import tensorflow as tf
 
-            # Set table height to correspond to respective curr/prev neuron positions
-            self.df_bias[0] = np.ones(len(currLayer.neurons))
-            self.df_weight[0] = np.ones(len(currLayer.neurons))
-            self.df_prev_neuron[0] = np.ones(len(prevLayer.neurons))
+dataset = tf.keras.datasets.mnist.load_data(path="mnist.npz")
+
+x_train = dataset[0][0]
+y_train = dataset[0][1]
+
+x_test = dataset[1][0]
+y_test = dataset[1][1]
 
 class Network:
     def __init__(self, numNeuronsInEachLayers):
@@ -110,6 +95,32 @@ class Network:
             #np.asarray(self.weights)
             self.weights = np.asarray(self.weights)
 
+class Table:
+    def __init__(self, network, batchsize):
+        self.tables = []
+        
+        count = 0
+        for layer in network.layers:
+            if layer == network.inputlayer:
+                count = count + 1
+                continue
+                
+            self.tables.append(self.LayerTable(network.layers[count-1], layer, batchsize))
+            count = count + 1
+            
+    class LayerTable:
+        # Initialize Tables & Store Them Inside the Network
+        def __init__(self, prevLayer, currLayer, batchsize):
+            # Set table width to be equal to batch size
+            self.df_bias = pd.DataFrame(columns=range(batchsize))
+            self.df_weight = pd.DataFrame(columns=range(batchsize))
+            self.df_prev_neuron = pd.DataFrame(columns=range(batchsize))
+
+            # Set table height to correspond to respective curr/prev neuron positions
+            # self.df_bias[0] = np.ones(len(currLayer.neurons))
+            self.df_weight[0] = np.empty(len(currLayer.neurons), dtype=object) #np.ones(len(currLayer.neurons)) 
+            # self.df_prev_neuron[0] = np.ones(len(prevLayer.neurons))
+
 def z_value(prevLayer, currLayer):
     # Matrix-vector multiplication to calculate next layer values
     result = np.matmul(currLayer.weights, prevLayer.neurons)
@@ -126,34 +137,98 @@ def cost(actual, ideal):
         sum = sum + pow(y - y_bar, 2)
     return sum
 
-# Finds derivative with respect to a single weight parameter
-def derivative_of_cost_with_respect_to_weight(current_neuron, previous_neuron, z_value, ideal_output):
-    return previous_neuron * ((pow(np.e, -z_value)) / pow((1 + pow(np.e, -z_value)), 2)) * (2 * (current_neuron - ideal_output))
+def derivative_of_current_neuron_with_respect_to_current_z_value(z_value):
+    return ((pow(np.e, -z_value)) / pow((1 + pow(np.e, -z_value)), 2)) 
 
-# Finds derivative with respect to a single bias parameter
-def derivative_of_cost_with_respect_to_bias(current_neuron, z_value, ideal_output):
-    return ((pow(np.e, -z_value)) / pow((1 + pow(np.e, -z_value)), 2)) * (2 * (current_neuron - ideal_output))
+def derivative_of_cost_with_respect_to_current_neuron(a, y):
+    return (2 * (a - y))
 
-# Finds derivative with respect to a single weight parameter
-def derivative_of_cost_with_respect_to_previous_neuron(weight, current_neuron, z_value, ideal_output):
-    return weight * ((pow(np.e, -z_value)) / pow((1 + pow(np.e, -z_value)), 2)) * (2 * (current_neuron - ideal_output))
-
-def partial_backpropagation(currLayer, prevLayer, ideal_outputs, df_bias, df_weight, df_prev_nueron, train_number):
-    
-    j = 0
-    for a_j, z_j, y, w_j in zip(currLayer.neurons, currLayer.z_values, ideal_outputs, currLayer.weights):
-        nudge_bias = derivative_of_cost_with_respect_to_bias(a_j, z_j, y)
-        # Store Nudge in Bias Table
-        df_bias[train_number][j] = nudge_bias
+def train(network, X, Y):
+    # Initialize Table
+    table = Table(network, len(X))
         
-        for a_k, w_jk in zip(prevLayer.neurons, w_j):
-            nudge_weight = derivative_of_cost_with_respect_to_weight(a_j, a_k, z_j, y)
-            # Store Nudge in Weight Table
-            np.append(df_weight[train_number][j], nudge_weight)
-            
-            nudge_a_k = derivative_of_cost_with_respect_to_previous_neuron(a_j, z_j, y)
-            # Record Nudge in Previous Weight Table
-            df_prev_nueron[train_number][j] = nudge_a_k
-            
-        # Move on to next neuron in L layer
-        j = j + 1   
+    # Loop through all training examples
+    training_example = 0
+    for x,y in zip(X,Y):
+        # Run Training Example Through Network
+        network.update(x)
+        
+        # Perform Backpropagation Across All Training Examples
+        full_backpropagation(network, y, table, training_example)
+        training_example = training_example + 1
+
+# Full Algorithm For One Training Example
+def full_backpropagation(network, y, table, training_example):
+    
+    _y = np.zeros(len(network.outputlayer.neurons))
+    _y[y] = 1
+
+    index = len(network.layers) - 1
+    while index != 0:
+        currLayer = network.layers[index]
+        prevLayer = network.layers[index - 1]
+        lastLayer = network.layers[len(network.layers) - 1]
+                    
+        if index == len(network.layers) - 1:
+            partial_backpropagation(currLayer, prevLayer, lastLayer, _y, table.tables[index-1], None, training_example)
+        else:
+            partial_backpropagation(currLayer, prevLayer, lastLayer, _y, table.tables[index-1], table.tables[index], training_example)
+        # Go back one level in the neural network
+        index = index - 1
+
+# Partial Algorithm Involving Current Layer and Previous Layer
+def partial_backpropagation(currLayer, prevLayer, lastLayer, ideal_outputs, layertableCurrent, layertableBefore, training_example):
+    
+    # Set up tables
+    layertableCurrent.df_bias[training_example] = np.empty(len(currLayer.neurons))
+    layertableCurrent.df_prev_neuron[training_example] = np.empty(len(prevLayer.neurons))
+    for i in range(len(currLayer.neurons)):
+        layertableCurrent.df_weight[training_example].loc[i] = np.array([])
+
+    # Begin backpropagation
+    if currLayer == lastLayer:
+        j = 0
+        for a_j, z_j, y in zip(currLayer.neurons, currLayer.z_values, ideal_outputs):
+            dC_da = derivative_of_cost_with_respect_to_current_neuron(a_j, y)
+            da_dz = derivative_of_current_neuron_with_respect_to_current_z_value(z_j)
+            dz_db = 1
+
+            nudge_bias = dC_da * da_dz * dz_db
+            layertableCurrent.df_bias[training_example].loc[j] = nudge_bias
+
+            k = 0
+            for a_k, w_jk in zip(prevLayer.neurons, currLayer.weights[j]):
+                dz_dw = a_k
+                dz_da_minus1 = w_jk
+
+                nudge_weight = dC_da * da_dz * dz_dw
+                layertableCurrent.df_weight[training_example].loc[j] = np.append(layertableCurrent.df_weight[training_example].loc[j], nudge_weight)
+
+                nudge_prev_neuron = dC_da * da_dz * dz_da_minus1
+                layertableCurrent.df_prev_neuron[training_example][k] = layertableCurrent.df_prev_neuron[training_example][k] + nudge_prev_neuron
+
+                k = k + 1
+            j = j + 1
+
+    else:
+        j = 0
+        for a_j, z_j, dC_da in zip(currLayer.neurons, currLayer.z_values, layertableBefore.df_prev_neuron[training_example]):
+            da_dz = derivative_of_current_neuron_with_respect_to_current_z_value(z_j)
+            dz_db = 1
+
+            nudge_bias = dC_da * da_dz * dz_db
+            layertableCurrent.df_bias[training_example].loc[j] = nudge_bias
+
+            k = 0
+            for a_k, w_jk in zip(prevLayer.neurons, currLayer.weights[j]):
+                dz_dw = a_k
+                dz_da_minus1 = w_jk
+
+                nudge_weight = dC_da * da_dz * dz_dw
+                layertableCurrent.df_weight[training_example].loc[j] = np.append(layertableCurrent.df_weight[training_example].loc[j], nudge_weight)
+
+                nudge_prev_neuron = dC_da * da_dz * dz_da_minus1
+                layertableCurrent.df_prev_neuron[training_example][k] = layertableCurrent.df_prev_neuron[training_example][k] + nudge_prev_neuron 
+                
+                k = k + 1
+            j = j + 1
