@@ -11,7 +11,7 @@ x_test = dataset[1][0]
 y_test = dataset[1][1]
 
 class Network:
-    def __init__(self, numNeuronsInEachLayers):
+    def __init__(self, numNeuronsInEachLayer):
         
         # Initialize Input Layer
         self.inputlayer = self.InputLayer(numNeuronsInEachLayer[0])
@@ -148,6 +148,7 @@ def train(network, X, Y):
     # Loop through all training examples
     training_example = 0
     for x,y in zip(X,Y):
+        print("i:", training_example)
         # Run Training Example Through Network
         network.update(x)
         
@@ -217,8 +218,8 @@ def partial_backpropagation(currLayer, prevLayer, lastLayer, ideal_outputs, laye
                 dz_da_minus1 = w_jk
 
                 nudge_weight = dC_da * da_dz * dz_dw
-                layertableCurrent.df_weight[training_example].loc[j] = np.append(layertableCurrent.df_weight[training_example].loc[j], nudge_weight)
-
+                #print(nudge_weight, layertableCurrent.df_weight[training_example].loc[j])
+                layertableCurrent.df_weight.loc[:,(training_example,j)] = np.append(layertableCurrent.df_weight[training_example].loc[j], nudge_weight)
                 nudge_prev_neuron = dC_da * da_dz * dz_da_minus1
                 layertableCurrent.df_prev_neuron[training_example][k] = layertableCurrent.df_prev_neuron[training_example][k] + nudge_prev_neuron
 
@@ -240,7 +241,8 @@ def partial_backpropagation(currLayer, prevLayer, lastLayer, ideal_outputs, laye
                 dz_da_minus1 = w_jk
 
                 nudge_weight = dC_da * da_dz * dz_dw
-                layertableCurrent.df_weight[training_example].loc[j] = np.append(layertableCurrent.df_weight[training_example].loc[j], nudge_weight)
+                layertableCurrent.df_weight.loc[:,(training_example,j)] = np.append(layertableCurrent.df_weight[training_example].loc[j], nudge_weight)
+        
 
                 nudge_prev_neuron = dC_da * da_dz * dz_da_minus1
                 layertableCurrent.df_prev_neuron[training_example][k] = layertableCurrent.df_prev_neuron[training_example][k] + nudge_prev_neuron 
@@ -248,17 +250,29 @@ def partial_backpropagation(currLayer, prevLayer, lastLayer, ideal_outputs, laye
                 k = k + 1
             j = j + 1
 
-X = x_train[0:2]
-Y = y_train[0:2]
+def model_parameters(numInputNeurons, numMiddleNeurons, numOutputNeurons):
+    numNeuronsInEachLayer = [numInputNeurons]
+    for i in numMiddleNeurons:
+        numNeuronsInEachLayer.append(i)
+    numNeuronsInEachLayer.append(numOutputNeurons)
 
-numInputNeurons = 784
-numOutputNeurons = 10
+    return numNeuronsInEachLayer
 
-# Array of Number of Neurons in Each Layer
-numNeuronsInEachLayer = [numInputNeurons, 16, 16, 16, numOutputNeurons]
+# Set up parameters, and build the network
+model_parameters = model_parameters(784,[16,16,16],10)
+n = Network(model_parameters)
 
-n = Network(numNeuronsInEachLayer)
+# Define batch size parameters
+i = 0
+j = 1000
 
-n.update(x_train[0])
-n.layers
-train(n,X,Y)
+# Train the model
+while j <= 60000:
+    print(i, ":", j)
+    X = x_train[i:j]
+    Y = y_train[i:j]
+
+    train(n,X,Y)
+
+    i = i + 1000
+    j = j + 1000
